@@ -376,8 +376,6 @@ var Game = {
                 self.start();
             });
 
-            startButton.click();
-
             var replayButton = document.getElementById("lose").getElementsByTagName("button")[0];      
                     
             replayButton.addEventListener("click", function() {
