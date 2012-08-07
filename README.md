@@ -1,4 +1,4 @@
-Outbreak
+Tetrarchy
 =====
 
-A simple implementation of Breakout in JavaScript. 
+A simple implementation of Tetris in JavaScript. 

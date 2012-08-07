@@ -1,159 +1,39 @@
 <!doctype html>
     <head>
-        <title>Outbreak</title>
+        <title>Tetrarchy</title>
     </head>
     <link href='http://fonts.googleapis.com/css?family=Press+Start+2P' rel='stylesheet' type='text/css'>
 
     <style>
-        
-        #game-container {
-            width: 700px;
-            height: 480px;
-            position: relative;
-            margin: 10px;
-            padding: 0;
-            font-family: HelveticaNeue, Helvetica, sans-serif;
-            color: #333;
-            overflow: hidden;
+
+        body {
+            font-family: Helvetica, sans-serif;
         }
 
-        #game-container li {
-            display: none;
-            width: 100%;
-            height: 100%;
-            position: relative;
-            border: 1px solid #999;
-            margin: 0;
-            padding: 0;
-            text-align: center;
-            box-sizing: border-box;
+        h1 {
+            font-family: "Press Start 2P", sans-serif;
         }
 
-        .transform-supported #game-container li {
-            display: block;
-            position: absolute; 
-            top: 0;
-            left: 0;
-            -webkit-transform: translate3d(100%, 0, 0);                      
-        }
-
-        #game-container li.hide,
-        #game-container li.show {
-            -webkit-transition: -webkit-transform .4s ease-out; 
-        }
-
-        .transform-supported #game-container li.show {
-            -webkit-transform: translate3d(0%, 0, 0);
-        }
-
-        .transform-supported #game-container li.hide {
-            -webkit-transform: translate3d(-100%, 0, 0);
-        }
-
-        #game-container button {
-            display: block;
-            min-width: 100px;
-            margin: 10px auto;
+        #game-container canvas {
             border: 1px solid #ccc;
-            box-shadow: 0 0 2px #111;
-            border-radius: 10px;
-            padding: 10px 15px;
-            color: #111;
-            text-shadow: 1px 1px #888;
-            font-size: 14px;
-            -webkit-transform: rotate(1deg); 
-            cursor: pointer;
-            background: #f1e767;
-            background: -moz-linear-gradient(top,  #f1e767 0%, #feb645 100%);
-            background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#f1e767), color-stop(100%,#feb645));
-            background: -webkit-linear-gradient(top,  #f1e767 0%,#feb645 100%);
-            background: -o-linear-gradient(top,  #f1e767 0%,#feb645 100%);
-            background: -ms-linear-gradient(top,  #f1e767 0%,#feb645 100%);
-            background: linear-gradient(to bottom,  #f1e767 0%,#feb645 100%);
-                        
         }
 
-        #game-container button:nth-child(odd) {
-            -webkit-transform: rotate(-1deg); 
+        #score:before {
+            content: "Score: ";
         }
-
-        #game-container #title,
-        #about,
-        #lose {
-            background: #fcfff4;
-            background: -moz-radial-gradient(center, ellipse cover,  #fcfff4 0%, #dfe5d7 40%, #b3bead 100%);
-            background: -webkit-gradient(radial, center center, 0px, center center, 100%, color-stop(0%,#fcfff4), color-stop(40%,#dfe5d7), color-stop(100%,#b3bead));
-            background: -webkit-radial-gradient(center, ellipse cover,  #fcfff4 0%,#dfe5d7 40%,#b3bead 100%);
-            background: -o-radial-gradient(center, ellipse cover,  #fcfff4 0%,#dfe5d7 40%,#b3bead 100%);
-            background: -ms-radial-gradient(center, ellipse cover,  #fcfff4 0%,#dfe5d7 40%,#b3bead 100%);
-            background: radial-gradient(ellipse at center,  #fcfff4 0%,#dfe5d7 40%,#b3bead 100%);
-        }
-
-        #title h1,
-        #about h1,
-        #lose h1 {
-            font-size: 40px;
-            color: #000;
-            text-shadow: 0 0 3px #999;
-            font-family: 'Press Start 2P', cursive;
-            -webkit-transform: rotate(-3deg);
-            margin: 150px 0 20px 0;
-        }
-
-        #game canvas {
-            background: #000;
-        }
-
-        #score {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, .6);
-            padding: 7px;
-            border-radius: 5px;
-            color: #fff;
-        }
-
-        #about a {
-            color: #333;
-        }
-
+        
     </style>
 
     <body>
 
-        <ol id="game-container">
+        <h1>Tetrarchy</h1>
 
-            <li id="title" class="show">
-                <h1>Outbreak</h1>
-                <button type="button" id="button-play">Play</button>
-                <button type="button" id="button-about">About</button>               
-            </li>
+        <div id="game-container">
+                <canvas id="game"></canvas>
+        </div>
 
-            <li id="game">
-                <div id="score">0</div>
-                <canvas></canvas>
-            </li>
-
-            <li id="lose">
-                <h1>Game over</h1>
-                <div id="final-score">Your score: <span></span></div>
-                <button type="button">Try again</button>               
-            </li>
-
-            <li id="win">
-                <h1>You're awesome!</h1>
-            </li>
-
-
-            <li id="about">
-                <h1>Outbreak</h1>
-                <h3>By <a href="http://alexanderdickson.com">Alex Dickson</a></h3>
-                <button type="button">Back</button>                              
-            </li>
-
-        </ol>
-        
+        <div id="score"></div>
+           
         <script src="game.js"></script>
 
     </body>

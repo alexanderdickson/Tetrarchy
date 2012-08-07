@@ -1,474 +1,598 @@
+// Utilities.
 var Util = {
     // Create objects with set prototype
     // and call their `init()` method.
-    createObject: function(prototype) {
+    createObject: function (prototype) {
         var object = Object.create(prototype);
         var args = [].slice.call(arguments, 1);
         object.init.apply(object, args);
         return object;
+    },
+
+    // Turn an array of 3 items into a "rgb(n,n,n)"
+    // string.
+    makeRgb: function (rgb) {
+        return "rgb(" + rgb.join(",") + ")";
     }
 };
 
+// The PieceFactory is used for making
+// new piece objects.
+var PieceFactory = {
 
-var Player = {
+    // Definitions of each Tetris piece.
+    // Cell = 1
+    // Origin = 2 (optional)
+    definitions: [
+    // S
+    [
+        [0, 0, 0, 0],
+        [0, 2, 1, 0],
+        [1, 1, 0, 0],
+        [0, 0, 0, 0]
+    ],
+    // J
+    [
+        [1, 0, 0, 0],
+        [1, 2, 1, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+    ],
+    // L
+    [
+        [0, 0, 1, 0],
+        [1, 2, 1, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+    ],
+    // Z
+    [
+        [1, 2, 0, 0],
+        [0, 1, 1, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+    ],
+    // I
+    [
+        [0, 0, 0, 0],
+        [1, 2, 2, 1],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+    ],
+    // O
+    [
+        [0, 1, 1, 0],
+        [0, 1, 1, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+    ],
+    // T
+    [
+        [0, 1, 0, 0],
+        [0, 2, 1, 0],
+        [0, 1, 0, 0],
+        [0, 0, 0, 0]
+    ]
 
-    x: 0,
+    ],
 
-    y: 0,
+    // The calculated rotations are cached.
+    cache: [],
 
-    width: 100,
+    makeCache: function (id) {
 
-    height: 10,
+        var rotations = [
+                []
+            ],
+            definition = this.definitions[id],
+            origin = null;
 
-    // 0 => stopped, 1 => left, 2 => right
-    direction: 0,
+        // Build nicer format to work with.
+        for (var y = 0, yLength = definition.length; y < yLength; y++) {
+            for (var x = 0, xLength = definition[y].length; x < xLength; x++) {
 
-    speed: 20,
+                var coords = {
+                    x: x,
+                    y: y,
+                    value: definition[y][x]
+                };
 
-    init: function(x, y) {
-        this.x = +x;
-        this.y = +y;
-    },
-    
-    moveLeft: function() {
-        this.direction = 1;
-    },
+                switch (definition[y][x]) {
+                case 2:
+                    origin = {
+                        x: coords.x,
+                        y: coords.y
+                    };
+                case 1:
+                    rotations[0].push(coords);
+                }
+            }
 
-    moveRight: function() {
-        this.direction = 2;
-    },
+        }
 
-    stop: function() {
-        this.direction = 0;
-    },
+        // Build rotations.
+        for (var rotation = 0; rotation < 3; rotation++) {
+            var set = [];
+            rotations.push(set);
 
-    update: function() {
-        
-        switch (this.direction) {
-            case 1:
-                this.x -= this.speed;
-                break;
-            case 2:
-                this.x += this.speed;
-                break;
+            for (var i = 0, iLength = rotations[rotation].length; i < iLength; i++) {
+
+                var x = rotations[rotation][i].x,
+                    y = rotations[rotation][i].y;
+
+                // Some shapes don't have an origin, such as the block.
+                if (origin) {
+
+                    // Transpose to Cartesian system (minus the origin's offset).
+                    x -= origin.x;
+                    y -= origin.y;
+
+                    // Flip the y's sign (Cartesian's y goes up, our implementation's y goes down).
+                    y = -y;
+
+                    // Apply transformation.
+                    // x' = x * cos(PI/2) - y * sin(PI/2)
+                    // y' = x * sin(PI/2) + y * cos(PI/2)
+                    // These formulas translate to more simple equations
+                    // as we are only rotation 90 degree chunks.
+                    // x' = -y
+                    // y' = x;
+                    var temp = x;
+                    x = -y;
+                    y = temp;
+
+                    // Flip the y's sign back to origin.
+                    y = -y;
+
+                    // Add origin offset back to coords.
+                    x += origin.x;
+                    y += origin.y;
+
+                }
+
+                set.push({
+                    x: x,
+                    y: y,
+                    value: rotations[rotation][i].value
+                });
+            }
+
+            this.cache[id] = rotations;
+
         }
 
     },
 
-    getDrawDescription: function() {
-        return {
-            x: this.x,
-            y: this.y,
-            width: this.width,
-            height: this.height,
-            type: "player"
+    // Get list of pieces in all rotations.
+    getPieceDefinition: function (id) {
+
+        if (!this.definitions[id]) {
+            return;
         }
+
+        if (!this.cache[id]) {
+            this.makeCache(id);
+        }
+
+        return this.cache[id];
+
+    },
+
+    getRandomPiece: function () {
+        var randomIndex = Math.floor(Math.random() * this.definitions.length);
+        return Util.createObject(Piece, this.getPieceDefinition(randomIndex));
     }
 
-}
+};
 
-var Block = {
-    width: 35,
 
-    height: 14,
+// Tetris Piece
+var Piece = {
 
     x: 0,
 
     y: 0,
+
+    speed: 1,
+
+    dropSpeed: 1,
+
+    isFallingFast: false,
+
+    rotation: 0,
+
+    direction: null,
 
     destroyed: false,
 
-    colour: null,
-
-    init: function(x, y) {
-        this.x = +x;
-        this.y = +y;
-        
-        // Each block is a random colour.
-        this.colour = "rgb(" + [Math.floor(Math.random() * 255), Math.floor(Math.random() * 255), Math.floor(Math.random() * 255)].join(",") + ")";
+    init: function (type) {
+        this.type = type;
+        this.color = [Math.floor(Math.random() * 255), Math.floor(Math.random() * 255), Math.floor(Math.random() * 255)];
 
     },
 
-    destroy: function() {
+    getCells: function () {
+
+        if (this.destroyed) {
+            return [];
+        }
+
+        return this.type[this.rotation];
+    },
+
+    getCellsByRotation: function (rotation) {
+        return this.type[rotation] && this.type[rotation];
+    },
+
+    destroy: function () {
         this.destroyed = true;
     },
 
-    enable: function() {
-        this.destroyed = false;
-    },
+    rotate: function () {
 
-    isDestroyed: function() {
-        return !! this.destroyed;
-    },
-    
-    getDrawDescription: function() {
-        return {
-            x: this.x,
-            y : this.y,
-            width: this.width,
-            height: this.height,
-            colour: this.colour,
-            type: "block",
-            visible: ! this.destroyed
-        }
-    }
-};
+        var newRotation = (this.rotation + 1) % 4;
 
-
-
-var Ball = {
-    x: 0,
-
-    y: 0,
-
-    speed: 10,
-
-    dx: 0,
-    
-    dy: 1,
-
-    radius: 1,
-
-    init: function(x, y, radius) {
-        this.x = +x;
-        this.y =+y;
-        this.radius = +radius;
-    },
-
-    isCollidingWith: function(object) {
-        var radius2 = this.radius * 2;
-
-        return (this.x + radius2 > object.x && this.x < object.x + object.width 
-                && this.y + radius2 > object.y && this.y < object.y + object.height); 
-    },
-
-    update: function() {
-        
-        // Move.
-        if (this.dx) {
-            this.x += this.speed * this.dx;
-        } else {
-            this.x -= this.speed * this.dx;
-        }
-
-        if (this.dy) {
-            this.y += this.speed * this.dy;
-        } else {
-            this.y -= this.speed * this.dy;
-        }
-
-        // Is player going to lose?
-        if (this.y + this.radius > World.height) {
-            Game.lose();
+        // Some blocks can not rotate when against
+        // an edge, otherwise cells will appear
+        // out of bounds.
+        if (!Board.canMoveToX(this.getCellsByRotation(newRotation), this.x, this.y)) {
             return;
         }
-    
-        // Bounce in world's bounds.
-        if (this.x - this.radius < 0 || this.x + this.radius > World.width) {
-            this.dx *= -1;
-        }
 
-        if (this.y - this.radius < 0 || this.y + this.radius > World.height) {
-            this.dy *= -1;
-        }
+        this.rotation = newRotation;
+    },
 
-        // Check for collision with player and blocks.
-        if (this.isCollidingWith(Player)) {
-            // Make ball bounce differently dependent on where it hits the paddle.
-            this.dx = (this.x - Player.x - (Player.width / 2)) / Player.width;
-            this.dy *= -1;
-        } else {
-            
-            var allDestroyed = true;
+    moveLeft: function () {
+        this.direction = "left";
+    },
 
-            for (var i = 0; i < Game.blocks.length; i++) {
-                var thisDestroyed = Game.blocks[i].isDestroyed();
+    moveRight: function () {
+        this.direction = "right";
+    },
 
-                if ( ! thisDestroyed) {
-                    allDestroyed = false;
-                    
-                    if (this.isCollidingWith(Game.blocks[i])) {
-                        Game.blocks[i].destroy();
-                        Game.addToScore();
-                        this.dy *= -1;
-                        
-                        // Stop looking for collisions,
-                        // otherwise the ball can hit a
-                        // gap and it's too easy for the
-                        // player.
-                        break;
-                    }
-
-                }
-            }
-            if (allDestroyed) {
-                Game.win();
-                return;
-            }
-        }
-
-
+    fall: function () {
+        this.isFallingFast = true;
 
     },
 
-    getDrawDescription: function() {
-        return {
-            x: this.x,
-            y: this.y,
-            radius: this.radius,
-            type: "ball"
+    stop: function () {
+        this.isFallingFast = false;
+        this.direction = null;
+    },
+
+    update: function (index) {
+
+        var y = this.y,
+            x = this.x;
+
+        if (this.destroyed) {
+            return;
         }
+
+        // Move piece down.
+        if (!(index % (this.isFallingFast ? 0 : 4))) {
+            y += 1;
+        }
+
+        switch (this.direction) {
+        case "left":
+            x -= this.speed;
+            break;
+        case "right":
+            x += this.speed;
+            break;
+        }
+
+        if (Board.canMoveToX(this.getCells(), x, y)) {
+            this.x = x;
+        }
+
+        if (Board.checkCollisionAt(this, this.x, y)) {
+
+            if (this.y <= 0) {
+                Game.lose();
+                return;
+            }
+
+            // 10 points for placing a piece.
+            Game.updateScore(10);
+
+            Board.mergeIntoStack(this);
+
+            this.destroy();
+
+            var linesCleared = Board.clearLines();
+
+            // 100 * lines score for clearing a line.
+            Game.updateScore(100 * linesCleared);
+            Board.add();
+            return;
+
+        }
+
+        this.y = y;
+
     }
 
-    
-
-
-}
-
-var World = {
-    width: 700,
-    height: 480
 };
 
+var Board = {
 
+    width: 16,
+
+    height: 24,
+
+    cellSize: 16,
+
+    cells: [],
+
+    activePiece: null,
+
+    direction: null,
+
+    init: function () {
+
+        for (var y = 0; y < this.height; y++) {
+            this.cells[y] = [];
+            for (var x = 0; x < this.width; x++) {
+                // No piece occupying any cells.
+                this.cells[y][x] = null;
+            }
+        }
+
+        this.add();
+
+    },
+
+    canMoveToX: function (cells, x, y) {
+        for (var i = 0, length = cells.length; i < length; i++) {
+
+            var cell = cells[i];
+
+            // Check left and right boundaries.
+            if (x + cell.x < 0 || x + cell.x >= this.width) {
+                return false;
+            }
+
+            if (this.getCellAt(x + cell.x, y + cell.y)) {
+                return false;
+            }
+
+        }
+
+        return true;
+
+    },
+
+
+    checkCollisionAt: function (item, x, y) {
+
+        var cells = item.getCells();
+
+        var boardCells = this.cells;
+
+        for (var i = 0, length = cells.length; i < length; i++) {
+
+            var cell = cells[i];
+
+            // Check to see if we've collided with the bottom.
+            if (cell.y + y >= Board.height) {
+                return true;
+            }
+
+            if (this.getCellAt(cell.x + x, cell.y + y)) {
+                return true;
+            }
+
+        }
+
+        return false;
+
+    },
+
+    mergeIntoStack: function (piece, x, y) {
+        var cells = piece.getCells();
+
+        for (var i = 0, length = cells.length; i < length; i++) {
+            var cell = cells[i];
+
+            this.setCellAt(piece.x + cell.x, piece.y + cell.y, {
+                    color: piece.color
+                });
+
+        }
+
+    },
+
+    reflowStack: function (row) {
+
+        for (var y = row; y > 0; y--) {
+            for (var x = 0; x < this.width; x++) {
+                this.cells[y][x] = this.cells[y - 1][x];
+            }
+        }
+
+    },
+
+    clearLines: function () {
+
+        var linesCleared = 0;
+
+        for (var y = this.height - 1; y >= 0; y--) {
+
+            for (var x = 0; x < this.width; x++) {
+                var cell = this.getCellAt(x, y);
+
+                if (cell && x == this.width - 1) {
+                    // Full row, clear 'em.
+                    this.reflowStack(y);
+                    linesCleared++;
+                    x = 0;
+                } else if (!cell) {
+                    // This can't be a whole row, try new one.
+                    break;
+                }
+
+            }
+
+        }
+
+        return linesCleared;
+    },
+
+    getCellAt: function (x, y) {
+        return this.cells[y] && this.cells[y][x];
+    },
+
+    setCellAt: function (x, y, block) {
+        this.cells[y][x] = block;
+    },
+
+    getActivePiece: function () {
+        return this.activePiece;
+    },
+
+    add: function () {
+
+        this.activePiece = PieceFactory.getRandomPiece();
+
+        this.activePiece.x = Math.floor((this.width - 4) / 2);
+        this.activePiece.y = -2;
+
+    }
+};
 
 var Renderer = {
 
-    width: 0,
-
-    height: 0,
-
     ctx: null,
 
-    objects: [],
-
-    init: function(width, height, canvas) {
-        this.width = +width;
-        this.height = +height;
+    init: function () {
+        var canvas = document.getElementById("game");
         this.ctx = canvas.getContext("2d");
-
-        canvas.width = this.width;
-        canvas.height = this.height;
+        canvas.width = Board.width * Board.cellSize;
+        canvas.height = Board.height * Board.cellSize;
     },
 
-    addObject: function(obj) {
-        this.objects.push(obj);
-    },
+    render: function () {
 
-    render: function() {
+        // Clear game board.
+        this.ctx.clearRect(0, 0, Board.width * Board.cellSize, Board.height * Board.cellSize);
 
-        // Clear canvas.
-        this.ctx.clearRect(0, 0, this.width, this.height);
+        // Draw pool.
+        for (var y = 0; y < Board.height; y++) {
+            for (var x = 0; x < Board.width; x++) {
 
-        // Draw objects.
-        for (var i = 0, length = this.objects.length; i < length; i++) {
-            
-            var drawDescription = this.objects[i].getDrawDescription();
+                var cell = Board.getCellAt(x, y);
 
-            switch (drawDescription.type) {
+                if (!cell) {
+                    continue;
+                }
 
-                case "player":
-                    this.ctx.fillStyle = "red";
-                    this.ctx.fillRect(drawDescription.x, drawDescription.y, drawDescription.width, drawDescription.height);
-                    break;
+                this.ctx.fillStyle = Util.makeRgb(cell.color);
 
-                case "block":
-                    if ( ! drawDescription.visible) {
-                        continue;
-                    }
-
-                    this.ctx.fillStyle = drawDescription.colour;
-                    this.ctx.fillRect(drawDescription.x, drawDescription.y, drawDescription.width, drawDescription.height);
-                    break;
-                   
-                case "ball":
-                    this.ctx.fillStyle = "blue";
-                    this.ctx.beginPath();
-                    this.ctx.arc(drawDescription.x, drawDescription.y, drawDescription.radius, 0, Math.PI * 2);
-                    this.ctx.closePath();
-                    this.ctx.fill();
-                    break;
-                    
+                this.ctx.fillRect(x * Board.cellSize, y * Board.cellSize, Board.cellSize, Board.cellSize);
 
             }
+        }
 
+        // Draw active piece.
+        var currentPiece = Board.getActivePiece();
+        var cells = currentPiece.getCells();
+
+        this.ctx.fillStyle = Util.makeRgb(currentPiece.color);
+
+        for (var i = 0, length = cells.length; i < length; i++) {
+            this.ctx.fillRect((currentPiece.x + cells[i].x) * Board.cellSize, (currentPiece.y + cells[i].y) * Board.cellSize, Board.cellSize, Board.cellSize);
         }
 
     }
-
-};
-
+}
 
 var Game = {
 
+    active: true,
+
+    interval: 100,
+
+    frameIndex: 0,
+
     score: 0,
 
-    blocks: [],
-
-    updateInterval: 40,
-
-    active: false,
-
-    activePanelId: "title",
-
-    update: function () {
-        Player.update();
-        Ball.update();
-        Renderer.render();
-    },
-
-    showPanel: function(panelId) {
-
-        var previousPanel = document.getElementById(this.activePanelId),
-            nextPanel = document.getElementById(panelId);
-
-        previousPanel.className = (" " + previousPanel.className + " ").replace(" show ", "") + " hide";
-        nextPanel.className += " show";
-        
-        this.activePanelId = panelId;
-
-    },
-
     init: function () {
+
+        Board.init();
+
+        Renderer.init();
+
+        this.start();
+
         var self = this;
-
-        Renderer.init(World.width, World.height, document.getElementsByTagName("canvas")[0]);
-
-        Renderer.addObject(Player);
-        Renderer.addObject(Ball);
-
-        var blockPadding = 2,
-            blockGroupPadding = 40,
-            blocksPerRow = Math.floor((World.width - blockGroupPadding * 2) / (Block.width + blockPadding));
-
-        // Create blocks.
-        for (var i = 0; i < 48; i++) {
-
-            var x = blockGroupPadding + (Block.width + blockPadding) * (i % blocksPerRow),
-                y = blockGroupPadding + (Block.height + blockPadding) * Math.floor(i / blocksPerRow);
-           
-            var block = Util.createObject(Block, x, y);
-
-            Renderer.addObject(block);
-
-            this.blocks.push(block);
-
-        }
-
-        
-
-        if (document.body.style.hasOwnProperty("webkitTransform")) {
-            document.body.className += " transform-supported";
-        
-            document.getElementById("game-container").addEventListener("webkitTransitionEnd", function(event) {
-                event.target.className = (" " + event.target.className + " ").replace(" hide ", "");
-            });
-
-        }
-
-        document.addEventListener("DOMContentLoaded", function () {
-            
-            
-            var startButton = document.getElementById("button-play");
-
-            startButton.addEventListener("click", function() {
-                self.showPanel("game");
-                self.start();
-            });
-
-            var replayButton = document.getElementById("lose").getElementsByTagName("button")[0];      
-                    
-            replayButton.addEventListener("click", function() {
-                self.showPanel("game");           
-                self.start();
-            });
-
-            var aboutButton = document.getElementById("button-about");
-            
-            aboutButton.addEventListener("click", function() {
-                self.showPanel("about");
-            });
-            
-            var backButton = document.getElementById("about").getElementsByTagName("button")[0];      
-                    
-            backButton.addEventListener("click", function() {
-                self.showPanel("title");           
-            });          
-
-        });
-
         document.addEventListener("keydown", function (event) {
-            
-            if ( ! self.active) {
+
+            if (!self.active) {
                 return;
             }
 
             switch (event.keyCode) {
-                case 39:
-                case 68:
-                    Player.moveRight();
-                    break;
-                case 37:
-                case 65:
-                    Player.moveLeft();
-                    break;
+            case 38:
+            case 87:
+                Board.getActivePiece().rotate();
+                break;
+            case 39:
+            case 68:
+                Board.getActivePiece().moveRight();
+                break;
+            case 37:
+            case 65:
+                Board.getActivePiece().moveLeft();
+                break;
+            case 40:
+            case 68:
+                Board.getActivePiece().fall();
             }
+
         });
 
-        document.addEventListener("keyup", function() {
-            Player.stop();
+        document.addEventListener("keyup", function (event) {
+            Board.getActivePiece().stop();
+
         });
 
-        
     },
 
-    addToScore: function() {
-        document.getElementById("score").textContent = ++this.score;
+    update: function () {
+        Board.getActivePiece().update(this.frameIndex);
+        Renderer.render();
+        this.frameIndex++;
     },
 
-    start: function() {
-        this.score = 0;
+    start: function () {
 
         this.active = true;
 
-        Player.init((World.width - Player.width) / 2, 460);
-
-        var ballRadius = 8;
-        Ball.init((World.width / 2) - ballRadius, World.height - 100, ballRadius);
-
-
-        // Re-enable all blocks.
-        for (var i = 0, length = this.blocks.length; i < length; i++) {
-            this.blocks[i].enable();
-        }
-        
         var self = this;
 
-        (function me(game) {
+        (function me() {
 
-            if ( ! self.active) {
+            if (!self.active) {
                 return;
             }
 
             self.update();
-            setTimeout(me, self.updateInterval);
+            setTimeout(me, self.interval);
         })();
 
-       
     },
 
-    win: function() {
-        this.showPanel("win");       
+    lose: function () {
         this.active = false;
+        alert("You lose!");
     },
 
-    lose: function() {
-        document.getElementById("score").textContent = 0;
-        document.getElementById("final-score").getElementsByTagName("span")[0].textContent = this.score;       
-        this.showPanel("lose");       
-        this.active = false;
+    updateScore: function (points) {
+        this.score += points;
+        document.getElementById("score").textContent = this.score;
     }
-
 };
 
 Game.init();
